@@ -1,11 +1,11 @@
 import { Routes, Route } from "react-router-dom";
-import { useEffect } from "react";
+import { JSX, useEffect } from "react";
 
 import HelpdeskFeedPage from "./pages/HelpdeskFeedPage";
-import AskQuestionPage from "./pages/AskQuestion";
 import QuestionDetailPage from "./pages/QuestionDetailPage";
+import ProfilePage from "./pages/ProfilePage";
 
-function App() {
+function App(): JSX.Element {
   useEffect(() => {
     const existingUser = localStorage.getItem("user");
 
@@ -26,8 +26,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HelpdeskFeedPage />} />
-      <Route path="/ask" element={<AskQuestionPage />} />
       <Route path="/question/:id" element={<QuestionDetailPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
     </Routes>
   );
 }

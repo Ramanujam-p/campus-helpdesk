@@ -1,48 +1,56 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, JSX } from "react";
 import { useNavigate } from "react-router-dom";
 import { questions as mockQuestions } from "../mocks/data";
+import QuestionSkeleton from "../components/QuestionSkeleton";
+import AskQuestion from "./AskQuestion"; // adjust path if needed
 
-function HelpdeskFeedPage() {
+/* -------------------- TYPES -------------------- */
+type SortOption = "newest" | "popular" | "unanswered";
+
+interface Question {
+  id: number;
+  title: string;
+  description: string;
+  author: string;
+  tags: string[];
+  answers: unknown[];
+  views: number;
+  createdAt: string;
+}
+
+/* -------------------- COMPONENT -------------------- */
+function HelpdeskFeedPage(): JSX.Element {
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("newest");
+  const [sort, setSort] = useState<SortOption>("newest");
   const [loading, setLoading] = useState(true);
+  const [showAskModal, setShowAskModal] = useState(false);
 
   const navigate = useNavigate();
 
   /* =========================
      LOADING SIMULATION
-     (Replace with Firestore later)
   ========================= */
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 800); // UX-friendly delay
-
+    const timer = setTimeout(() => setLoading(false), 800);
     return () => clearTimeout(timer);
   }, []);
 
   /* =========================
      FILTER QUESTIONS
   ========================= */
-  const filteredQuestions = mockQuestions.filter(
+  const filteredQuestions = (mockQuestions as Question[]).filter(
     (q) =>
       q.title.toLowerCase().includes(search.toLowerCase()) ||
       q.description.toLowerCase().includes(search.toLowerCase())
   );
 
   /* =========================
-     SORT QUESTIONS (FIXED)
+     SORT QUESTIONS
   ========================= */
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
-    if (sort === "popular") {
-      return b.views - a.views; // Most viewed first
-    }
-
-    if (sort === "unanswered") {
-      return a.answers.length - b.answers.length; // 0 answers first
-    }
-
-    return b.id - a.id; // Newest
+    if (sort === "popular") return b.views - a.views;
+    if (sort === "unanswered") return a.answers.length - b.answers.length;
+    return b.id - a.id;
   });
 
   return (
@@ -50,14 +58,22 @@ function HelpdeskFeedPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
 
         {/* ===== HEADER ===== */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-6 py-4 shadow-md">
+        <div className="flex items-center gap-4 mb-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl px-6 py-4 shadow-md">
+          <button
+            onClick={() => navigate("/profile")}
+            className="text-white text-3xl hover:scale-110 transition"
+            title="Profile"
+          >
+            👤
+          </button>
+
           <h1 className="text-2xl sm:text-3xl font-bold text-white">
             Helpdesk Feed
           </h1>
 
           <button
-            onClick={() => navigate("/ask")}
-            className="sm:ml-auto bg-white text-blue-700 px-6 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-50 hover:scale-105 transition"
+            onClick={() => setShowAskModal(true)}
+            className="ml-auto bg-white text-blue-700 px-6 py-2 rounded-lg font-semibold shadow-md hover:bg-blue-50 hover:scale-105 transition"
           >
             + Ask Question
           </button>
@@ -76,7 +92,7 @@ function HelpdeskFeedPage() {
           <select
             className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400"
             value={sort}
-            onChange={(e) => setSort(e.target.value)}
+            onChange={(e) => setSort(e.target.value as SortOption)}
           >
             <option value="newest">Newest</option>
             <option value="popular">Most Popular</option>
@@ -84,25 +100,28 @@ function HelpdeskFeedPage() {
           </select>
         </div>
 
-        {/* ===== LOADING STATE ===== */}
+        {/* ===== LOADING ===== */}
         {loading && (
-          <div className="flex justify-center mt-20">
-            <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="space-y-6">
+            {[...Array(3)].map((_, i) => (
+              <QuestionSkeleton key={i} />
+            ))}
           </div>
         )}
 
-        {/* ===== NO RESULTS STATE ===== */}
+        {/* ===== EMPTY STATE ===== */}
         {!loading && sortedQuestions.length === 0 && (
           <div className="text-center text-gray-500 mt-16">
             <p className="text-lg font-semibold">No questions found 😕</p>
             <p className="text-sm mt-2">
-              Try different keywords or clear search
+              Try different keywords or clear the search
             </p>
           </div>
         )}
 
-        {/* ===== QUESTION CARDS ===== */}
+        {/* ===== QUESTION LIST ===== */}
         {!loading &&
+          sortedQuestions.length > 0 &&
           sortedQuestions.map((q) => (
             <div
               key={q.id}
@@ -117,7 +136,6 @@ function HelpdeskFeedPage() {
                 {q.description.substring(0, 100)}...
               </p>
 
-              {/* ===== TAGS (MAX 3 ENFORCED) ===== */}
               <div className="flex flex-wrap gap-2 mt-3">
                 {q.tags.slice(0, 3).map((tag) => (
                   <span
@@ -129,7 +147,6 @@ function HelpdeskFeedPage() {
                 ))}
               </div>
 
-              {/* ===== FOOTER ===== */}
               <div className="flex flex-wrap gap-4 text-xs text-gray-500 mt-4">
                 <span>👤 {q.author}</span>
                 <span>💬 {q.answers.length} answers</span>
@@ -139,6 +156,13 @@ function HelpdeskFeedPage() {
             </div>
           ))}
       </div>
+
+      {/* ===== ASK QUESTION MODAL ===== */}
+      {showAskModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4">
+          <AskQuestion onClose={() => setShowAskModal(false)} />
+        </div>
+      )}
     </div>
   );
 }
