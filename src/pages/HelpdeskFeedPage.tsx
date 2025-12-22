@@ -1,44 +1,38 @@
-import { useState, useEffect, JSX } from "react";
+import { useState, JSX } from "react";
 import { useNavigate } from "react-router-dom";
-import { questions as mockQuestions } from "../mocks/data";
+import { useQuestions } from "../hooks/useQuestions";
 import QuestionSkeleton from "../components/QuestionSkeleton";
-import AskQuestion from "./AskQuestion"; // adjust path if needed
+import AskQuestion from "./AskQuestion";
 
 /* -------------------- TYPES -------------------- */
 type SortOption = "newest" | "popular" | "unanswered";
 
 interface Question {
-  id: number;
+  id: string;                 // ✅ Firestore ID is string
   title: string;
   description: string;
   author: string;
   tags: string[];
   answers: unknown[];
   views: number;
-  createdAt: string;
+  createdAt: string;          // ISO string from Firestore
 }
 
 /* -------------------- COMPONENT -------------------- */
 function HelpdeskFeedPage(): JSX.Element {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("newest");
-  const [loading, setLoading] = useState(true);
   const [showAskModal, setShowAskModal] = useState(false);
 
   const navigate = useNavigate();
 
-  /* =========================
-     LOADING SIMULATION
-  ========================= */
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
+  /* ✅ GET DATA FROM FIREBASE */
+  const { questions, loading } = useQuestions();
 
   /* =========================
      FILTER QUESTIONS
   ========================= */
-  const filteredQuestions = (mockQuestions as Question[]).filter(
+  const filteredQuestions = (questions as Question[]).filter(
     (q) =>
       q.title.toLowerCase().includes(search.toLowerCase()) ||
       q.description.toLowerCase().includes(search.toLowerCase())
@@ -50,7 +44,12 @@ function HelpdeskFeedPage(): JSX.Element {
   const sortedQuestions = [...filteredQuestions].sort((a, b) => {
     if (sort === "popular") return b.views - a.views;
     if (sort === "unanswered") return a.answers.length - b.answers.length;
-    return b.id - a.id;
+
+    // ✅ newest (by date)
+    return (
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
+    );
   });
 
   return (
@@ -121,7 +120,6 @@ function HelpdeskFeedPage(): JSX.Element {
 
         {/* ===== QUESTION LIST ===== */}
         {!loading &&
-          sortedQuestions.length > 0 &&
           sortedQuestions.map((q) => (
             <div
               key={q.id}

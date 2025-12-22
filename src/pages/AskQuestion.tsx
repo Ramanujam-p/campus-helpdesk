@@ -1,4 +1,6 @@
 import { JSX, useState } from "react";
+import { useQuestions } from "../hooks/useQuestions";
+import { useAuthContext } from "../hooks/useAuth";
 
 /* -------------------- CONSTANT DATA -------------------- */
 const TAGS: string[] = [
@@ -29,18 +31,6 @@ interface Errors {
   level?: string;
 }
 
-interface Question {
-  id: number;
-  title: string;
-  description: string;
-  author: string;
-  tags: string[];
-  level: string;
-  answers: unknown[];
-  views: number;
-  createdAt: string;
-}
-
 /* -------------------- PROPS -------------------- */
 interface AskQuestionProps {
   onClose: () => void;
@@ -59,6 +49,12 @@ export default function AskQuestion({
 
   const [errors, setErrors] = useState<Errors>({});
   const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  /* -------------------- AUTH + BACKEND -------------------- */
+  const { user } = useAuthContext(); // ✅ logged-in user
+  const { createQuestion } = useQuestions();
+  // ✅ backend hook
 
   /* -------------------- TAG HANDLER -------------------- */
   const toggleTag = (tag: string): void => {
@@ -95,29 +91,20 @@ export default function AskQuestion({
   };
 
   /* -------------------- SUBMIT -------------------- */
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate() || !user) return;
 
-    const newQuestion: Question = {
-      id: Date.now(),
+    setSubmitting(true);
+
+    await createQuestion({
       title: title.trim(),
       description: description.trim(),
-      author: "You",
       tags,
       level,
-      answers: [],
-      views: 0,
-      createdAt: "Just now",
-    };
-
-    const existingQuestions: Question[] =
-      JSON.parse(localStorage.getItem("questions") || "[]");
-
-    localStorage.setItem(
-      "questions",
-      JSON.stringify([newQuestion, ...existingQuestions])
-    );
+    });
 
     setSuccess(true);
 
@@ -147,9 +134,8 @@ export default function AskQuestion({
             value={title}
             disabled={success}
             onChange={(e) => setTitle(e.target.value)}
-            className={`w-full border rounded-lg px-3 py-2 ${
-              errors.title ? "border-red-500" : ""
-            }`}
+            className={`w-full border rounded-lg px-3 py-2 ${errors.title ? "border-red-500" : ""
+              }`}
           />
           <div className="flex justify-between text-sm mt-1">
             <span className="text-red-500">{errors.title}</span>
@@ -166,13 +152,14 @@ export default function AskQuestion({
             value={description}
             disabled={success}
             onChange={(e) => setDescription(e.target.value)}
-            className={`w-full border rounded-lg px-3 py-2 ${
-              errors.description ? "border-red-500" : ""
-            }`}
+            className={`w-full border rounded-lg px-3 py-2 ${errors.description ? "border-red-500" : ""
+              }`}
           />
           <div className="flex justify-between text-sm mt-1">
             <span className="text-red-500">{errors.description}</span>
-            <span className="text-gray-500">{description.length}/2000</span>
+            <span className="text-gray-500">
+              {description.length}/2000
+            </span>
           </div>
         </div>
 
@@ -186,18 +173,19 @@ export default function AskQuestion({
                 type="button"
                 disabled={success}
                 onClick={() => toggleTag(tag)}
-                className={`px-3 py-1 rounded-full text-sm border ${
-                  tags.includes(tag)
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100"
-                }`}
+                className={`px-3 py-1 rounded-full text-sm border ${tags.includes(tag)
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100"
+                  }`}
               >
                 {tag}
               </button>
             ))}
           </div>
           {errors.tags && (
-            <p className="text-sm text-red-500 mt-1">{errors.tags}</p>
+            <p className="text-sm text-red-500 mt-1">
+              {errors.tags}
+            </p>
           )}
         </div>
 
@@ -211,18 +199,19 @@ export default function AskQuestion({
                 type="button"
                 disabled={success}
                 onClick={() => setLevel(lvl)}
-                className={`px-3 py-1 rounded-lg border ${
-                  level === lvl
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-100"
-                }`}
+                className={`px-3 py-1 rounded-lg border ${level === lvl
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-100"
+                  }`}
               >
                 {lvl}
               </button>
             ))}
           </div>
           {errors.level && (
-            <p className="text-sm text-red-500 mt-1">{errors.level}</p>
+            <p className="text-sm text-red-500 mt-1">
+              {errors.level}
+            </p>
           )}
         </div>
 
@@ -239,10 +228,10 @@ export default function AskQuestion({
 
           <button
             type="submit"
-            disabled={success}
+            disabled={success || submitting}
             className="px-6 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60"
           >
-            Submit
+            {submitting ? "Posting..." : "Submit"}
           </button>
         </div>
       </form>

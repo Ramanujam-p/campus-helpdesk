@@ -19,6 +19,9 @@ import {
   Smile,
 } from "lucide-react";
 
+// ✅ AUTH CONTEXT
+import { useAuthContext } from "../hooks/useAuth";
+
 /* -------------------- TYPES -------------------- */
 interface InterestOption {
   name: string;
@@ -67,24 +70,26 @@ const SKILL_LEVELS: SkillLevel[] = [
 
 /* -------------------- COMPONENT -------------------- */
 function ProfilePage(): JSX.Element {
-  const [isLoading] = useState(false);
+  /* ================= AUTH ================= */
+  const { user, loading } = useAuthContext();
+
+  /* ================= UI STATE ================= */
   const [isEditing, setIsEditing] = useState(false);
 
-  /* USER STATE */
-  const [name, setName] = useState("Alex Chen");
-  const [email] = useState("alexchen@example.com");
-  const [bio, setBio] = useState(
+  const [name, setName] = useState<string>("Anonymous");
+  const [bio, setBio] = useState<string>(
     "Curious learner who loves exploring new ideas! 🌟"
   );
+
   const [selectedInterests, setSelectedInterests] = useState<string[]>([
     "Mathematics",
     "Science",
-    "Computer Science",
   ]);
+
   const [selectedSkillLevel, setSelectedSkillLevel] =
     useState<string>("Learning");
 
-  /* BACKUP STATE FOR CANCEL */
+  /* ================= BACKUP STATE ================= */
   const [backup, setBackup] = useState({
     name,
     bio,
@@ -92,6 +97,31 @@ function ProfilePage(): JSX.Element {
     selectedSkillLevel,
   });
 
+  /* ================= SYNC AUTH USER ================= */
+  useEffect(() => {
+    if (user) {
+      setName(user.displayName || "Anonymous");
+    }
+  }, [user]);
+
+  /* ================= GUARD ================= */
+  if (loading) {
+    return (
+      <div className="min-h-screen p-6">
+        <Skeleton className="h-48 w-full rounded-3xl" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Please log in to view your profile.</p>
+      </div>
+    );
+  }
+
+  /* ================= MOCK STATS (can be Firestore later) ================= */
   const stats: Stats = {
     questionsAsked: 12,
     answersGiven: 8,
@@ -99,23 +129,7 @@ function ProfilePage(): JSX.Element {
     daysActive: 45,
   };
 
-  /* MOCK RECENT ACTIVITY */
-  const recentQuestions = [
-    "How to start DSA in 2nd year?",
-    "Difference between var, let and const?",
-    "Best way to learn React?",
-    "What is time complexity?",
-    "How recursion works?",
-  ];
-
-  const recentAnswers = [
-    "Start with arrays and recursion...",
-    "Use let and const instead of var...",
-    "Follow a structured roadmap...",
-    "Time complexity measures performance...",
-    "Recursion calls itself...",
-  ];
-
+  /* ================= HANDLERS ================= */
   const toggleInterest = (interest: string): void => {
     if (!isEditing) return;
     setSelectedInterests((prev) =>
@@ -136,16 +150,7 @@ function ProfilePage(): JSX.Element {
   };
 
   const handleSave = () => {
-    localStorage.setItem(
-      "user",
-      JSON.stringify({
-        name,
-        email,
-        bio,
-        selectedInterests,
-        selectedSkillLevel,
-      })
-    );
+    // 🔥 Later: Save to Firestore user profile
     setIsEditing(false);
   };
 
@@ -157,14 +162,7 @@ function ProfilePage(): JSX.Element {
     setIsEditing(false);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen p-6">
-        <Skeleton className="h-48 w-full rounded-3xl" />
-      </div>
-    );
-  }
-
+  /* ================= UI ================= */
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 p-6 md:p-12">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -184,13 +182,17 @@ function ProfilePage(): JSX.Element {
               {isEditing ? (
                 <>
                   <Input value={name} onChange={(e) => setName(e.target.value)} />
-                  <Input className="mt-2" value={bio} onChange={(e) => setBio(e.target.value)} />
+                  <Input
+                    className="mt-2"
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                  />
                 </>
               ) : (
                 <>
                   <h1 className="text-gray-900">{name}</h1>
                   <p className="text-gray-600">{bio}</p>
-                  <p className="text-sm text-gray-500">{email}</p>
+                  <p className="text-sm text-gray-500">{user.email}</p>
                 </>
               )}
             </div>
@@ -252,9 +254,7 @@ function ProfilePage(): JSX.Element {
               <Button
                 key={level.name}
                 disabled={!isEditing}
-                variant={
-                  selectedSkillLevel === level.name ? "default" : "outline"
-                }
+                variant={selectedSkillLevel === level.name ? "default" : "outline"}
                 onClick={() => setSelectedSkillLevel(level.name)}
               >
                 {level.icon} {level.name}
@@ -262,23 +262,6 @@ function ProfilePage(): JSX.Element {
             ))}
           </div>
         </Card>
-
-        {/* RECENT ACTIVITY */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card className="p-6">
-            <h3 className="font-semibold mb-3">Recent Questions</h3>
-            {recentQuestions.map((q, i) => (
-              <p key={i} className="text-sm text-gray-600">• {q}</p>
-            ))}
-          </Card>
-
-          <Card className="p-6">
-            <h3 className="font-semibold mb-3">Recent Answers</h3>
-            {recentAnswers.map((a, i) => (
-              <p key={i} className="text-sm text-gray-600">• {a}</p>
-            ))}
-          </Card>
-        </div>
 
         {/* FOOTER */}
         <div className="text-center text-gray-600 flex items-center justify-center gap-2">

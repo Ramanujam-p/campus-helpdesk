@@ -4,12 +4,18 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
 
+// ✅ IMPORT AUTH PROVIDER
+import { AuthProvider } from "./hooks/useAuth";
+
 const rootElement = document.getElementById("root") as HTMLElement;
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    {/* ✅ AUTH CONTEXT AT TOP LEVEL */}
+    <AuthProvider>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </AuthProvider>
   </React.StrictMode>
 );
