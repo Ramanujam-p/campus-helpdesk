@@ -32,7 +32,7 @@ function HelpdeskFeedPage(): JSX.Element {
   /* =========================
      FILTER QUESTIONS
   ========================= */
-  const filteredQuestions = (questions as Question[]).filter(
+  const filteredQuestions = (questions as unknown as Question[]).filter(
     (q) =>
       q.title.toLowerCase().includes(search.toLowerCase()) ||
       q.description.toLowerCase().includes(search.toLowerCase())

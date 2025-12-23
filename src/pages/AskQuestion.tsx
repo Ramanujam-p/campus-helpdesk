@@ -1,4 +1,4 @@
-import { JSX, useState } from "react";
+import { useState, FormEvent } from "react";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAuthContext } from "../hooks/useAuth";
 
@@ -29,6 +29,7 @@ interface Errors {
   description?: string;
   tags?: string;
   level?: string;
+  auth?: string;
 }
 
 /* -------------------- PROPS -------------------- */
@@ -37,10 +38,7 @@ interface AskQuestionProps {
 }
 
 /* -------------------- COMPONENT -------------------- */
-export default function AskQuestion({
-  onClose,
-}: AskQuestionProps): JSX.Element {
-
+export default function AskQuestion({ onClose }: AskQuestionProps) {
   /* -------------------- STATE -------------------- */
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -52,17 +50,18 @@ export default function AskQuestion({
   const [submitting, setSubmitting] = useState(false);
 
   /* -------------------- AUTH + BACKEND -------------------- */
-  const { user } = useAuthContext(); // ✅ logged-in user
+  const { user } = useAuthContext();
   const { createQuestion } = useQuestions();
-  // ✅ backend hook
 
   /* -------------------- TAG HANDLER -------------------- */
   const toggleTag = (tag: string): void => {
-    if (tags.includes(tag)) {
-      setTags(tags.filter((t) => t !== tag));
-    } else if (tags.length < 5) {
-      setTags([...tags, tag]);
-    }
+    setTags((prev) =>
+      prev.includes(tag)
+        ? prev.filter((t) => t !== tag)
+        : prev.length < 5
+          ? [...prev, tag]
+          : prev
+    );
   };
 
   /* -------------------- VALIDATION -------------------- */
@@ -74,8 +73,7 @@ export default function AskQuestion({
     }
 
     if (description.trim().length < 20) {
-      newErrors.description =
-        "Description must be at least 20 characters";
+      newErrors.description = "Description must be at least 20 characters";
     }
 
     if (tags.length === 0) {
@@ -91,26 +89,40 @@ export default function AskQuestion({
   };
 
   /* -------------------- SUBMIT -------------------- */
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ): Promise<void> => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!validate() || !user) return;
 
-    setSubmitting(true);
+    if (submitting) return;
 
-    await createQuestion({
-      title: title.trim(),
-      description: description.trim(),
-      tags,
-      level,
-    });
+    if (!validate()) return;
 
-    setSuccess(true);
+    if (!user) {
+      setErrors({ auth: "Please login to post a question" });
+      return;
+    }
 
-    setTimeout(() => {
-      onClose(); // ✅ close modal
-    }, 1500);
+    try {
+      setSubmitting(true);
+
+      await createQuestion({
+        title: title.trim(),
+        description: description.trim(),
+        tags,
+        level,
+      });
+
+      setSuccess(true);
+
+      // Close modal after showing success
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+    } catch (err) {
+      console.error("Error posting question:", err);
+      setErrors({ auth: "Failed to post question. Try again." });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   /* -------------------- UI -------------------- */
@@ -118,6 +130,14 @@ export default function AskQuestion({
     <div className="bg-white w-full max-w-xl rounded-xl shadow-lg p-6">
       <h2 className="text-2xl font-bold mb-4">Ask a Question</h2>
 
+      {/* AUTH ERROR */}
+      {errors.auth && (
+        <div className="mb-3 p-2 rounded bg-red-100 text-red-700 text-sm">
+          {errors.auth}
+        </div>
+      )}
+
+      {/* SUCCESS MESSAGE */}
       {success && (
         <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-700 font-medium">
           ✅ Question posted successfully!
@@ -174,8 +194,8 @@ export default function AskQuestion({
                 disabled={success}
                 onClick={() => toggleTag(tag)}
                 className={`px-3 py-1 rounded-full text-sm border ${tags.includes(tag)
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-100"
                   }`}
               >
                 {tag}
@@ -183,9 +203,7 @@ export default function AskQuestion({
             ))}
           </div>
           {errors.tags && (
-            <p className="text-sm text-red-500 mt-1">
-              {errors.tags}
-            </p>
+            <p className="text-sm text-red-500 mt-1">{errors.tags}</p>
           )}
         </div>
 
@@ -200,8 +218,8 @@ export default function AskQuestion({
                 disabled={success}
                 onClick={() => setLevel(lvl)}
                 className={`px-3 py-1 rounded-lg border ${level === lvl
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100"
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100"
                   }`}
               >
                 {lvl}
@@ -209,9 +227,7 @@ export default function AskQuestion({
             ))}
           </div>
           {errors.level && (
-            <p className="text-sm text-red-500 mt-1">
-              {errors.level}
-            </p>
+            <p className="text-sm text-red-500 mt-1">{errors.level}</p>
           )}
         </div>
 
@@ -219,7 +235,7 @@ export default function AskQuestion({
         <div className="flex justify-between pt-4">
           <button
             type="button"
-            disabled={success}
+            disabled={submitting}
             onClick={onClose}
             className="px-4 py-2 rounded-lg bg-gray-200"
           >
@@ -228,7 +244,7 @@ export default function AskQuestion({
 
           <button
             type="submit"
-            disabled={success || submitting}
+            disabled={submitting}
             className="px-6 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-60"
           >
             {submitting ? "Posting..." : "Submit"}
